@@ -9,20 +9,33 @@ import pkg from '../../package.json';
 
 const VERSION = pkg.version ?? '1.0.0';
 
+// Release binaries are too large for a git-based Netlify deploy (GitHub caps
+// files at 100 MB), so they're published as GitHub Release assets and served
+// from there. `/releases/latest/download/<file>` always points at the newest
+// release, so future releases work without touching this page.
+const GITHUB_RELEASES_PAGE = 'https://github.com/DharushShimry/StudyFlow/releases';
+const GITHUB_RELEASES_BASE = `${GITHUB_RELEASES_PAGE}/latest/download`;
+// GitHub release assets are served without CORS headers, so the page reads
+// asset availability/size from the CORS-enabled releases API instead.
+const GITHUB_RELEASES_API = 'https://api.github.com/repos/DharushShimry/StudyFlow/releases/latest';
+
 const INSTALLER_FILE = `StudyFlow_Setup_v${VERSION}.exe`;
 const PORTABLE_FILE = 'StudyFlow-Windows.zip';
 const INSTALLER_URL =
-  import.meta.env.VITE_STUDYFLOW_WINDOWS_INSTALLER_URL ?? `/releases/${INSTALLER_FILE}`;
+  import.meta.env.VITE_STUDYFLOW_WINDOWS_INSTALLER_URL ?? `${GITHUB_RELEASES_BASE}/${INSTALLER_FILE}`;
 const WEBSITE_URL =
   import.meta.env.VITE_STUDYFLOW_WEBSITE_URL ?? '/site/index.html';
 const PORTABLE_URL =
-  import.meta.env.VITE_STUDYFLOW_WINDOWS_PORTABLE_URL ?? `/releases/${PORTABLE_FILE}`;
+  import.meta.env.VITE_STUDYFLOW_WINDOWS_PORTABLE_URL ?? `${GITHUB_RELEASES_BASE}/${PORTABLE_FILE}`;
 
 const INSTALLER_SHA256 = '97839b569a2f59772abcacfd9e8720f50f4b36ada169c4d32f27abd7f2e4b4a9';
 const PORTABLE_SHA256 = '0a495678df0d9347627061a095b616a8b84eb9aeec47599f8253b71bebbad415';
 
 const INSTALLER_SHA_FILE = `${INSTALLER_FILE}.sha256`;
 const PORTABLE_SHA_FILE = `${PORTABLE_FILE}.sha256`;
+// Checksum files are tiny, so they live in the repo (public/releases/*.sha256)
+// and are served same-origin by the hosting — fetching them cross-origin from
+// GitHub would be blocked by CORS.
 const INSTALLER_SHA_URL = `/releases/${INSTALLER_SHA_FILE}`;
 const PORTABLE_SHA_URL = `/releases/${PORTABLE_SHA_FILE}`;
 const RELEASE_DATE = 'Aug 4, 2026';
@@ -37,6 +50,27 @@ interface FileInfo {
   size?: number;
 }
 
+/** GitHub release asset map: filename -> size in bytes. */
+type AssetMap = Record<string, number>;
+
+// Module-level cache so revisiting this page doesn't re-hit the GitHub API.
+let assetCache: { at: number; assets: AssetMap } | null = null;
+
+async function fetchReleaseAssets(): Promise<AssetMap | null> {
+  if (assetCache && Date.now() - assetCache.at < 10 * 60 * 1000) return assetCache.assets;
+  try {
+    const res = await fetch(GITHUB_RELEASES_API);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const assets: AssetMap = {};
+    for (const a of data.assets ?? []) assets[a.name] = a.size;
+    assetCache = { at: Date.now(), assets };
+    return assets;
+  } catch {
+    return null;
+  }
+}
+
 function useFileInfo(url: string): FileInfo {
   const [info, setInfo] = useState<FileInfo>({ status: 'checking' });
 
@@ -47,7 +81,22 @@ function useFileInfo(url: string): FileInfo {
       setInfo({ status: 'missing' });
       return;
     }
+    const isGitHubAsset = url.startsWith(GITHUB_RELEASES_BASE);
+    const fileName = url.slice(url.lastIndexOf('/') + 1);
     (async () => {
+      if (isGitHubAsset) {
+        // Cross-origin fetch of GitHub release assets is blocked by CORS, so
+        // availability and size come from the releases API (which sends
+        // Access-Control-Allow-Origin: *).
+        const assets = await fetchReleaseAssets();
+        if (cancelled) return;
+        if (assets) {
+          const size = assets[fileName];
+          setInfo(size != null ? { status: 'ready', size } : { status: 'missing' });
+          return;
+        }
+      }
+      // Same-origin files (checksums, website) or env-var overrides: HEAD request.
       try {
         const res = await fetch(url, { method: 'HEAD' });
         if (cancelled) return;
@@ -68,11 +117,10 @@ function useFileInfo(url: string): FileInfo {
 }
 
 /**
- * Fetches the live checksum for a release file from its .sha256 file, falling
- * back to the bundled constant when offline (or inside the packaged app, where
- * the release files aren't bundled). The constants can't be kept in sync with
- * regenerated artifacts (the artifact embeds the page that would contain its
- * own hash), so the .sha256 files are the source of truth.
+ * Fetches the live checksum for a release file from its .sha256 file (served
+ * same-origin from /releases), falling back to the bundled constant when
+ * offline or inside the packaged app. The .sha256 files in public/releases are
+ * the source of truth — keep them committed so this page shows fresh hashes.
  */
 function useSha256(url: string, fallback: string): string {
   const [hash, setHash] = useState(fallback);
@@ -325,11 +373,20 @@ export default function DownloadPage() {
               <div className="flex items-start gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
                 <ShieldAlert size={18} className="mt-0.5 shrink-0 text-amber-300" />
                 <p className="leading-6">
-                  You're running the <span className="font-semibold">installed desktop build</span> — release files aren't
-                  bundled inside the app. Grab the latest installer from the StudyFlow website, or copy{' '}
-                  <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-[12px]">{INSTALLER_FILE}</code> and{' '}
-                  <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-[12px]">{PORTABLE_FILE}</code> from the
-                  releases folder of your hosting.
+                  You're running the <span className="font-semibold">installed desktop build</span> — updates aren't
+                  pushed automatically. Download the latest{' '}
+                  <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-[12px]">{INSTALLER_FILE}</code> or{' '}
+                  <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-[12px]">{PORTABLE_FILE}</code>{' '}
+                  from{' '}
+                  <a
+                    href={GITHUB_RELEASES_PAGE}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold underline decoration-amber-400/50 underline-offset-2 hover:text-amber-50"
+                  >
+                    the GitHub releases page
+                  </a>{' '}
+                  and run it over this install — your local data is preserved.
                 </p>
               </div>
             )}

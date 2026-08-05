@@ -9,8 +9,11 @@ Website/dist/
 # Packaged desktop app (nativefier build)
 StudyFlow-win32-x64/
 
-# Release binaries (ZIP + installer exceed GitHub's 100 MB file limit)
-public/releases/
+# Release binaries (ZIP + installer exceed GitHub's 100 MB file limit) — they
+# are hosted as GitHub Release assets instead. The tiny .sha256 checksums ARE
+# committed (served same-origin so the app can fetch live hashes).
+public/releases/*
+!public/releases/*.sha256
 installer/Output/
 
 # Personal data backups (user study data — keep out of the repo)

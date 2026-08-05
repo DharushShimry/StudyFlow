@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "nativefier:build": "powershell -ExecutionPolicy Bypass -File scripts\\build-nativefier.ps1",
     "windows:installer": "powershell -ExecutionPolicy Bypass -File scripts\\build-windows-installer.ps1",
-    "windows:package": "powershell -ExecutionPolicy Bypass -File scripts\\package-windows.ps1"
+    "windows:package": "powershell -ExecutionPolicy Bypass -File scripts\\package-windows.ps1",
+    "publish:github": "powershell -ExecutionPolicy Bypass -File scripts\\publish-github-release.ps1"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

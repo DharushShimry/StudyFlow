@@ -49,20 +49,21 @@ import {
   FileDown,
 } from "lucide-react";
 
-/* ── Release constants — keep in sync with the files in /releases ── */
+/* ── Release constants — binaries live on GitHub Releases (too large for git/Netlify) ── */
 const VERSION = "1.0.0";
 const RELEASE_DATE = "Aug 4, 2026";
+const GITHUB_RELEASES_BASE = "https://github.com/DharushShimry/StudyFlow/releases/latest/download";
 const INSTALLER_FILE = `StudyFlow_Setup_v${VERSION}.exe`;
 const ZIP_FILE = "StudyFlow-Windows.zip";
 const INSTALLER_SHA_FILE = `${INSTALLER_FILE}.sha256`;
 const ZIP_SHA_FILE = `${ZIP_FILE}.sha256`;
-const INSTALLER_URL = `../releases/${INSTALLER_FILE}`;
-const ZIP_URL = `../releases/${ZIP_FILE}`;
-const INSTALLER_SHA_URL = `../releases/${INSTALLER_SHA_FILE}`;
-const ZIP_SHA_URL = `../releases/${ZIP_SHA_FILE}`;
+const INSTALLER_URL = `${GITHUB_RELEASES_BASE}/${INSTALLER_FILE}`;
+const ZIP_URL = `${GITHUB_RELEASES_BASE}/${ZIP_FILE}`;
+const INSTALLER_SHA_URL = `${GITHUB_RELEASES_BASE}/${INSTALLER_SHA_FILE}`;
+const ZIP_SHA_URL = `${GITHUB_RELEASES_BASE}/${ZIP_SHA_FILE}`;
 const APP_URL = "../index.html";
-const INSTALLER_SHA = "16725dcd5763dcc9dba9ebd8f6742a7afe35a7d086d8fa937f704a7dd7b033b8";
-const ZIP_SHA = "2e60be2cd9c02c84cc5ebea07b7b77a209526c3119ae7c2a5fbd4bf242b8a75b";
+const INSTALLER_SHA = "97839b569a2f59772abcacfd9e8720f50f4b36ada169c4d32f27abd7f2e4b4a9";
+const ZIP_SHA = "0a495678df0d9347627061a095b616a8b84eb9aeec47599f8253b71bebbad415";
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
@@ -71,26 +72,26 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
-/* Live file size via HEAD request — falls back to the known size when offline/file:// */
-function useDownloadInfo(url: string, fallback: string) {
-  const [label, setLabel] = useState(fallback);
+/* Real file sizes from the GitHub releases API (CORS-enabled) — falls back to the known size. */
+function useReleaseSizes() {
+  const [sizes, setSizes] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(url, { method: "HEAD" });
-        if (cancelled) return;
-        if (res.ok) {
-          const len = Number(res.headers.get("Content-Length") ?? 0);
-          if (len > 0) setLabel(formatBytes(len));
-        }
+        const res = await fetch("https://api.github.com/repos/DharushShimry/StudyFlow/releases/latest");
+        if (!res.ok) return;
+        const data = await res.json();
+        const map: Record<string, string> = {};
+        for (const a of data.assets ?? []) map[a.name] = formatBytes(a.size);
+        if (!cancelled) setSizes(map);
       } catch {
         /* keep fallback */
       }
     })();
     return () => { cancelled = true; };
-  }, [url]);
-  return label;
+  }, []);
+  return sizes;
 }
 
 /* ── Tiny hook: observe when element enters viewport ── */
@@ -408,8 +409,9 @@ export default function App() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const installerSizeLabel = useDownloadInfo(INSTALLER_URL, "73.6 MB");
-  const zipSizeLabel = useDownloadInfo(ZIP_URL, "98.4 MB");
+  const releaseSizes = useReleaseSizes();
+  const installerSizeLabel = releaseSizes[INSTALLER_FILE] ?? "244.7 MB";
+  const zipSizeLabel = releaseSizes[ZIP_FILE] ?? "273.2 MB";
 
   const features: Feature[] = [
     {

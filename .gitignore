@@ -23,6 +23,9 @@ src/Media/NIC.pdf
 src/Media/E-NIC.pdf
 src/Media/Signature.png
 
+# Personal logo (kept locally only — never commit)
+src/Media/Logo.svg
+
 # Logs
 *.log
 npm-debug.log*

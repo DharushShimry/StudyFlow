@@ -1,0 +1,36 @@
+{
+  "name": "react-vite-tailwind",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Akeem's Learning Zone - your personal study hub",
+  "type": "module",
+  "author": "Ahamed Akeem",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "nativefier:build": "powershell -ExecutionPolicy Bypass -File scripts\\build-nativefier.ps1",
+    "windows:installer": "powershell -ExecutionPolicy Bypass -File scripts\\build-windows-installer.ps1",
+    "windows:package": "powershell -ExecutionPolicy Bypass -File scripts\\package-windows.ps1"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "clsx": "2.1.1",
+    "hls.js": "^1.6.16",
+    "lucide-react": "^1.14.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "tailwind-merge": "3.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.1.17",
+    "@types/node": "22.19.17",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.1",
+    "tailwindcss": "4.1.17",
+    "typescript": "5.9.3",
+    "vite": "7.3.2",
+    "vite-plugin-singlefile": "2.3.0"
+  }
+}

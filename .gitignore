@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+Website/node_modules/
+
+# Build outputs
+dist/
+Website/dist/
+
+# Packaged desktop app (nativefier build)
+StudyFlow-win32-x64/
+
+# Release binaries (ZIP + installer exceed GitHub's 100 MB file limit)
+public/releases/
+installer/Output/
+
+# Personal data backups (user study data — keep out of the repo)
+studyflow-backup-*.json
+studyspace-backup-*.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

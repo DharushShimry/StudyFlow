@@ -73,17 +73,23 @@ function formatBytes(bytes: number): string {
 }
 
 /* Real file sizes from the GitHub releases API (CORS-enabled) — falls back to the known size. */
+let sizesCache: { at: number; map: Record<string, string> } | null = null;
 function useReleaseSizes() {
   const [sizes, setSizes] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (sizesCache && Date.now() - sizesCache.at < 10 * 60 * 1000) {
+        if (!cancelled) setSizes(sizesCache.map);
+        return;
+      }
       try {
         const res = await fetch("https://api.github.com/repos/DharushShimry/StudyFlow/releases/latest");
         if (!res.ok) return;
         const data = await res.json();
         const map: Record<string, string> = {};
         for (const a of data.assets ?? []) map[a.name] = formatBytes(a.size);
+        sizesCache = { at: Date.now(), map };
         if (!cancelled) setSizes(map);
       } catch {
         /* keep fallback */
@@ -227,7 +233,8 @@ type DownloadCardProps = {
 
 function DownloadCard({ icon, gradient, title, file, href, sizeFallback, tag, desc }: DownloadCardProps) {
   const { ref, inView } = useInView<HTMLAnchorElement>();
-  const sizeLabel = useDownloadInfo(href, sizeFallback);
+  const releaseSizes = useReleaseSizes();
+  const sizeLabel = releaseSizes[file] ?? sizeFallback;
   return (
     <a
       ref={ref}

@@ -17,6 +17,12 @@ installer/Output/
 studyflow-backup-*.json
 studyspace-backup-*.json
 
+# Personal identity documents (kept locally only — never commit)
+src/Media/NIC.PNG
+src/Media/NIC.pdf
+src/Media/E-NIC.pdf
+src/Media/Signature.png
+
 # Logs
 *.log
 npm-debug.log*
